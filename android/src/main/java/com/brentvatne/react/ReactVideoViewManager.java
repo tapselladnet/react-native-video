@@ -36,6 +36,9 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     public static final String PROP_PLAY_IN_BACKGROUND = "playInBackground";
     public static final String PROP_CONTROLS = "controls";
 
+    // instreamAdInfo prop name
+    public static final String PROP_INSTREAM_AD_INFO = "instreamAdInfo";
+
     @Override
     public String getName() {
         return REACT_CLASS;
@@ -65,37 +68,28 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     @Override
     @Nullable
     public Map getExportedViewConstants() {
-        return MapBuilder.of(
-                "ScaleNone", Integer.toString(ScalableType.LEFT_TOP.ordinal()),
-                "ScaleToFill", Integer.toString(ScalableType.FIT_XY.ordinal()),
-                "ScaleAspectFit", Integer.toString(ScalableType.FIT_CENTER.ordinal()),
-                "ScaleAspectFill", Integer.toString(ScalableType.CENTER_CROP.ordinal())
-        );
+        return MapBuilder.of("ScaleNone", Integer.toString(ScalableType.LEFT_TOP.ordinal()), "ScaleToFill",
+                Integer.toString(ScalableType.FIT_XY.ordinal()), "ScaleAspectFit",
+                Integer.toString(ScalableType.FIT_CENTER.ordinal()), "ScaleAspectFill",
+                Integer.toString(ScalableType.CENTER_CROP.ordinal()));
     }
 
     @ReactProp(name = PROP_SRC)
     public void setSrc(final ReactVideoView videoView, @Nullable ReadableMap src) {
         int mainVer = src.getInt(PROP_SRC_MAINVER);
         int patchVer = src.getInt(PROP_SRC_PATCHVER);
-        if(mainVer<0) { mainVer = 0; }
-        if(patchVer<0) { patchVer = 0; }
-        if(mainVer>0) {
-            videoView.setSrc(
-                    src.getString(PROP_SRC_URI),
-                    src.getString(PROP_SRC_TYPE),
-                    src.getBoolean(PROP_SRC_IS_NETWORK),
-                    src.getBoolean(PROP_SRC_IS_ASSET),
-                    mainVer,
-                    patchVer
-            );
+        if (mainVer < 0) {
+            mainVer = 0;
         }
-        else {
-            videoView.setSrc(
-                    src.getString(PROP_SRC_URI),
-                    src.getString(PROP_SRC_TYPE),
-                    src.getBoolean(PROP_SRC_IS_NETWORK),
-                    src.getBoolean(PROP_SRC_IS_ASSET)
-            );
+        if (patchVer < 0) {
+            patchVer = 0;
+        }
+        if (mainVer > 0) {
+            videoView.setSrc(src.getString(PROP_SRC_URI), src.getString(PROP_SRC_TYPE),
+                    src.getBoolean(PROP_SRC_IS_NETWORK), src.getBoolean(PROP_SRC_IS_ASSET), mainVer, patchVer);
+        } else {
+            videoView.setSrc(src.getString(PROP_SRC_URI), src.getString(PROP_SRC_TYPE),
+                    src.getBoolean(PROP_SRC_IS_NETWORK), src.getBoolean(PROP_SRC_IS_ASSET));
         }
     }
 
@@ -147,5 +141,19 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     @ReactProp(name = PROP_CONTROLS, defaultBoolean = false)
     public void setControls(final ReactVideoView videoView, final boolean controls) {
         videoView.setControls(controls);
+    }
+
+    // set instreamAdInfo prop for ReactVideoView
+    @ReactProp(name = PROP_INSTREAM_AD_INFO)
+    public void setInstreamAdInfo(final ReactVideoView videoView, @Nullable ReadableMap instreamAdInfo) {
+        // an instreamAdInfo must have an adTagUrl
+        String adTagUrl = null;
+        if (instreamAdInfo.hasKey("adTagUrl")) {
+            adTagUrl = instreamAdInfo.getString("adTagUrl");
+        }
+
+        if (adTagUrl != null) {
+            videoView.setInstreamAdInfo(new InstreamAdInfo(adTagUrl));
+        }
     }
 }

@@ -30,18 +30,14 @@ import java.util.Map;
 import java.lang.Math;
 
 @SuppressLint("ViewConstructor")
-public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnPreparedListener, MediaPlayer
-        .OnErrorListener, MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnCompletionListener, MediaPlayer.OnInfoListener, LifecycleEventListener, MediaController.MediaPlayerControl {
+public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnPreparedListener,
+        MediaPlayer.OnErrorListener, MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnCompletionListener,
+        MediaPlayer.OnInfoListener, LifecycleEventListener, MediaController.MediaPlayerControl {
 
     public enum Events {
-        EVENT_LOAD_START("onVideoLoadStart"),
-        EVENT_LOAD("onVideoLoad"),
-        EVENT_ERROR("onVideoError"),
-        EVENT_PROGRESS("onVideoProgress"),
-        EVENT_SEEK("onVideoSeek"),
-        EVENT_END("onVideoEnd"),
-        EVENT_STALLED("onPlaybackStalled"),
-        EVENT_RESUME("onPlaybackResume"),
+        EVENT_LOAD_START("onVideoLoadStart"), EVENT_LOAD("onVideoLoad"), EVENT_ERROR("onVideoError"),
+        EVENT_PROGRESS("onVideoProgress"), EVENT_SEEK("onVideoSeek"), EVENT_END("onVideoEnd"),
+        EVENT_STALLED("onPlaybackStalled"), EVENT_RESUME("onPlaybackResume"),
         EVENT_READY_FOR_DISPLAY("onReadyForDisplay");
 
         private final String mName;
@@ -85,7 +81,6 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     private Handler videoControlHandler = new Handler();
     private MediaController mediaController;
 
-
     private String mSrcUriString = null;
     private String mSrcType = "mp4";
     private boolean mSrcIsNetwork = false;
@@ -105,12 +100,17 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     private int mMainVer = 0;
     private int mPatchVer = 0;
 
-    private boolean mMediaPlayerValid = false; // True if mMediaPlayer is in prepared, started, paused or completed state.
+    private boolean mMediaPlayerValid = false; // True if mMediaPlayer is in prepared, started, paused or completed
+                                               // state.
 
     private int mVideoDuration = 0;
     private int mVideoBufferedDuration = 0;
     private boolean isCompleted = false;
     private boolean mUseNativeControls = false;
+
+    // this object keeps track of instreamAdInfo
+    // if this object is null then we have no instream ad
+    private InstreamAdInfo instreamAdInfo = null;
 
     public ReactVideoView(ThemedReactContext themedReactContext) {
         super(themedReactContext);
@@ -126,10 +126,10 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
             @Override
             public void run() {
 
-                if (mMediaPlayerValid && !isCompleted &&!mPaused) {
+                if (mMediaPlayerValid && !isCompleted && !mPaused) {
                     WritableMap event = Arguments.createMap();
                     event.putDouble(EVENT_PROP_CURRENT_TIME, mMediaPlayer.getCurrentPosition() / 1000.0);
-                    event.putDouble(EVENT_PROP_PLAYABLE_DURATION, mVideoBufferedDuration / 1000.0); //TODO:mBufferUpdateRunnable
+                    event.putDouble(EVENT_PROP_PLAYABLE_DURATION, mVideoBufferedDuration / 1000.0); // TODO:mBufferUpdateRunnable
                     event.putDouble(EVENT_PROP_SEEKABLE_DURATION, mVideoDuration / 1000.0);
                     mEventEmitter.receiveEvent(getId(), Events.EVENT_PROGRESS.toString(), event);
 
@@ -196,20 +196,21 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     }
 
     public void cleanupMediaPlayerResources() {
-        if ( mediaController != null ) {
+        if (mediaController != null) {
             mediaController.hide();
         }
-        if ( mMediaPlayer != null ) {
+        if (mMediaPlayer != null) {
             mMediaPlayerValid = false;
             release();
         }
     }
 
     public void setSrc(final String uriString, final String type, final boolean isNetwork, final boolean isAsset) {
-        setSrc(uriString,type,isNetwork,isAsset,0,0);
+        setSrc(uriString, type, isNetwork, isAsset, 0, 0);
     }
 
-    public void setSrc(final String uriString, final String type, final boolean isNetwork, final boolean isAsset, final int expansionMainVersion, final int expansionPatchVersion) {
+    public void setSrc(final String uriString, final String type, final boolean isNetwork, final boolean isAsset,
+            final int expansionMainVersion, final int expansionPatchVersion) {
 
         mSrcUriString = uriString;
         mSrcType = type;
@@ -217,7 +218,6 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         mSrcIsAsset = isAsset;
         mMainVer = expansionMainVersion;
         mPatchVer = expansionPatchVersion;
-
 
         mMediaPlayerValid = false;
         mVideoDuration = 0;
@@ -252,35 +252,29 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
                     setDataSource(uriString);
                 }
             } else {
-                ZipResourceFile expansionFile= null;
-                AssetFileDescriptor fd= null;
-                if(mMainVer>0) {
+                ZipResourceFile expansionFile = null;
+                AssetFileDescriptor fd = null;
+                if (mMainVer > 0) {
                     try {
-                        expansionFile = APKExpansionSupport.getAPKExpansionZipFile(mThemedReactContext, mMainVer, mPatchVer);
-                        fd = expansionFile.getAssetFileDescriptor(uriString.replace(".mp4","") + ".mp4");
+                        expansionFile = APKExpansionSupport.getAPKExpansionZipFile(mThemedReactContext, mMainVer,
+                                mPatchVer);
+                        fd = expansionFile.getAssetFileDescriptor(uriString.replace(".mp4", "") + ".mp4");
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (NullPointerException e) {
                         e.printStackTrace();
                     }
                 }
-                if(fd==null) {
-                    int identifier = mThemedReactContext.getResources().getIdentifier(
-                        uriString,
-                        "drawable",
-                        mThemedReactContext.getPackageName()
-                    );
+                if (fd == null) {
+                    int identifier = mThemedReactContext.getResources().getIdentifier(uriString, "drawable",
+                            mThemedReactContext.getPackageName());
                     if (identifier == 0) {
-                        identifier = mThemedReactContext.getResources().getIdentifier(
-                            uriString,
-                            "raw",
-                            mThemedReactContext.getPackageName()
-                        );
+                        identifier = mThemedReactContext.getResources().getIdentifier(uriString, "raw",
+                                mThemedReactContext.getPackageName());
                     }
                     setRawData(identifier);
-                }
-                else {
-                    setDataSource(fd.getFileDescriptor(), fd.getStartOffset(),fd.getLength());
+                } else {
+                    setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
                 }
             }
         } catch (Exception e) {
@@ -292,9 +286,9 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         src.putString(ReactVideoViewManager.PROP_SRC_URI, uriString);
         src.putString(ReactVideoViewManager.PROP_SRC_TYPE, type);
         src.putBoolean(ReactVideoViewManager.PROP_SRC_IS_NETWORK, isNetwork);
-        if(mMainVer>0) {
+        if (mMainVer > 0) {
             src.putInt(ReactVideoViewManager.PROP_SRC_MAINVER, mMainVer);
-            if(mPatchVer>0) {
+            if (mPatchVer > 0) {
                 src.putInt(ReactVideoViewManager.PROP_SRC_PATCHVER, mPatchVer);
             }
         }
@@ -303,9 +297,9 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD_START.toString(), event);
 
         try {
-          prepareAsync(this);
+            prepareAsync(this);
         } catch (Exception e) {
-          e.printStackTrace();
+            e.printStackTrace();
         }
     }
 
@@ -331,7 +325,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
         mPaused = paused;
 
-        if ( !mActiveStatePauseStatusInitialized ) {
+        if (!mActiveStatePauseStatusInitialized) {
             mActiveStatePauseStatus = mPaused;
             mActiveStatePauseStatusInitialized = true;
         }
@@ -348,7 +342,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
             if (!mMediaPlayer.isPlaying()) {
                 start();
                 // Setting the rate unpauses, so we have to wait for an unpause
-                if (mRate != mActiveRate) { 
+                if (mRate != mActiveRate) {
                     setRateModifier(mRate);
                 }
 
@@ -391,7 +385,8 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
                     mActiveRate = rate;
                 }
             } else {
-                Log.e(ReactVideoViewManager.REACT_CLASS, "Setting playback rate is not yet supported on Android versions below 6.0");
+                Log.e(ReactVideoViewManager.REACT_CLASS,
+                        "Setting playback rate is not yet supported on Android versions below 6.0");
             }
         }
     }
@@ -413,7 +408,6 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     public void setControls(boolean controls) {
         this.mUseNativeControls = controls;
     }
-
 
     @Override
     public void onPrepared(MediaPlayer mp) {
@@ -475,17 +469,17 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     @Override
     public boolean onInfo(MediaPlayer mp, int what, int extra) {
         switch (what) {
-            case MediaPlayer.MEDIA_INFO_BUFFERING_START:
-                mEventEmitter.receiveEvent(getId(), Events.EVENT_STALLED.toString(), Arguments.createMap());
-                break;
-            case MediaPlayer.MEDIA_INFO_BUFFERING_END:
-                mEventEmitter.receiveEvent(getId(), Events.EVENT_RESUME.toString(), Arguments.createMap());
-                break;
-            case MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START:
-                mEventEmitter.receiveEvent(getId(), Events.EVENT_READY_FOR_DISPLAY.toString(), Arguments.createMap());
-                break;
+        case MediaPlayer.MEDIA_INFO_BUFFERING_START:
+            mEventEmitter.receiveEvent(getId(), Events.EVENT_STALLED.toString(), Arguments.createMap());
+            break;
+        case MediaPlayer.MEDIA_INFO_BUFFERING_END:
+            mEventEmitter.receiveEvent(getId(), Events.EVENT_RESUME.toString(), Arguments.createMap());
+            break;
+        case MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START:
+            mEventEmitter.receiveEvent(getId(), Events.EVENT_READY_FOR_DISPLAY.toString(), Arguments.createMap());
+            break;
 
-            default:
+        default:
         }
         return false;
     }
@@ -555,11 +549,10 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
         super.onAttachedToWindow();
 
-        if(mMainVer>0) {
-            setSrc(mSrcUriString, mSrcType, mSrcIsNetwork,mSrcIsAsset,mMainVer,mPatchVer);
-        }
-        else {
-            setSrc(mSrcUriString, mSrcType, mSrcIsNetwork,mSrcIsAsset);
+        if (mMainVer > 0) {
+            setSrc(mSrcUriString, mSrcType, mSrcIsNetwork, mSrcIsAsset, mMainVer, mPatchVer);
+        } else {
+            setSrc(mSrcUriString, mSrcType, mSrcIsNetwork, mSrcIsAsset);
         }
 
     }
@@ -590,5 +583,9 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
     @Override
     public void onHostDestroy() {
+    }
+
+    public void setInstreamAdInfo(InstreamAdInfo newInstreamAdInfo) {
+        this.instreamAdInfo = newInstreamAdInfo;
     }
 }
