@@ -34,6 +34,9 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_DISABLE_FOCUS = "disableFocus";
     private static final String PROP_FULLSCREEN = "fullscreen";
 
+    // instreamAdInfo prop name
+    public static final String PROP_INSTREAM_AD_INFO = "instreamAdInfo";
+
     @Override
     public String getName() {
         return REACT_CLASS;
@@ -60,12 +63,10 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
 
     @Override
     public @Nullable Map<String, Object> getExportedViewConstants() {
-        return MapBuilder.<String, Object>of(
-                "ScaleNone", Integer.toString(ResizeMode.RESIZE_MODE_FIT),
-                "ScaleAspectFit", Integer.toString(ResizeMode.RESIZE_MODE_FIT),
-                "ScaleToFill", Integer.toString(ResizeMode.RESIZE_MODE_FILL),
-                "ScaleAspectFill", Integer.toString(ResizeMode.RESIZE_MODE_CENTER_CROP)
-        );
+        return MapBuilder.<String, Object>of("ScaleNone", Integer.toString(ResizeMode.RESIZE_MODE_FIT),
+                "ScaleAspectFit", Integer.toString(ResizeMode.RESIZE_MODE_FIT), "ScaleToFill",
+                Integer.toString(ResizeMode.RESIZE_MODE_FILL), "ScaleAspectFill",
+                Integer.toString(ResizeMode.RESIZE_MODE_CENTER_CROP));
     }
 
     @ReactProp(name = PROP_SRC)
@@ -85,17 +86,9 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
                 videoView.setSrc(srcUri, extension);
             }
         } else {
-            int identifier = context.getResources().getIdentifier(
-                uriString,
-                "drawable",
-                context.getPackageName()
-            );
+            int identifier = context.getResources().getIdentifier(uriString, "drawable", context.getPackageName());
             if (identifier == 0) {
-                identifier = context.getResources().getIdentifier(
-                    uriString,
-                    "raw",
-                    context.getPackageName()
-                );
+                identifier = context.getResources().getIdentifier(uriString, "raw", context.getPackageName());
             }
             if (identifier > 0) {
                 Uri srcUri = RawResourceDataSource.buildRawResourceUri(identifier);
@@ -161,12 +154,23 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
         videoView.setFullscreen(fullscreen);
     }
 
+    // set instreamAdInfo prop for ReactVideoView
+    @ReactProp(name = PROP_INSTREAM_AD_INFO)
+    public void setInstreamAdInfo(final ReactExoplayerView videoView, @Nullable ReadableMap instreamAdInfo) {
+        // an instreamAdInfo must have an adTagUrl
+        String adTagUrl = null;
+        if (instreamAdInfo.hasKey("adTagUrl")) {
+            adTagUrl = instreamAdInfo.getString("adTagUrl");
+        }
+
+        if (adTagUrl != null) {
+            videoView.setInstreamAdInfo(new InstreamAdInfo(adTagUrl));
+        }
+    }
+
     private boolean startsWithValidScheme(String uriString) {
-        return uriString.startsWith("http://")
-                || uriString.startsWith("https://")
-                || uriString.startsWith("content://")
-                || uriString.startsWith("file://")
-                || uriString.startsWith("asset://");
+        return uriString.startsWith("http://") || uriString.startsWith("https://") || uriString.startsWith("content://")
+                || uriString.startsWith("file://") || uriString.startsWith("asset://");
     }
 
     private @ResizeMode.Mode int convertToIntDef(String resizeModeOrdinalString) {
