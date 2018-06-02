@@ -11,6 +11,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import com.brentvatne.react.R;
@@ -51,14 +52,30 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.util.Util;
 
+import com.google.ads.interactivemedia.v3.api.AdDisplayContainer;
+import com.google.ads.interactivemedia.v3.api.AdErrorEvent;
+import com.google.ads.interactivemedia.v3.api.AdErrorEvent.AdErrorListener;
+import com.google.ads.interactivemedia.v3.api.AdEvent;
+import com.google.ads.interactivemedia.v3.api.AdEvent.AdEventListener;
+import com.google.ads.interactivemedia.v3.api.AdsLoader;
+import com.google.ads.interactivemedia.v3.api.AdsLoader.AdsLoadedListener;
+import com.google.ads.interactivemedia.v3.api.AdsManager;
+import com.google.ads.interactivemedia.v3.api.AdsManagerLoadedEvent;
+import com.google.ads.interactivemedia.v3.api.AdsRequest;
+import com.google.ads.interactivemedia.v3.api.ImaSdkFactory;
+import com.google.ads.interactivemedia.v3.api.player.ContentProgressProvider;
+import com.google.ads.interactivemedia.v3.api.player.VideoProgressUpdate;
+import com.google.ads.interactivemedia.v3.api.ImaSdkSettings;
+
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.lang.Math;
 
 @SuppressLint("ViewConstructor")
-class ReactExoplayerView extends FrameLayout implements LifecycleEventListener, ExoPlayer.EventListener,
-        BecomingNoisyListener, AudioManager.OnAudioFocusChangeListener, MetadataRenderer.Output {
+class ReactExoplayerView extends FrameLayout
+        implements LifecycleEventListener, ExoPlayer.EventListener, BecomingNoisyListener,
+        AudioManager.OnAudioFocusChangeListener, MetadataRenderer.Output, AdEventListener, AdErrorListener {
 
     private static final String TAG = "ReactNative";
 
@@ -124,6 +141,21 @@ class ReactExoplayerView extends FrameLayout implements LifecycleEventListener, 
     // if this object is null then we have no instream ad
     private InstreamAdInfo instreamAdInfo = null;
 
+    /* GoogleIMA defenitions */
+
+    // these objects are related to GoogleIMA SDK
+    private ImaSdkFactory mSdkFactory;
+    private AdsLoader mAdsLoader;
+    private AdsManager mAdsManager;
+
+    // Whether an ad is displayed.
+    private boolean mIsAdDisplayed = false;
+
+    // show if we requested instreamAd or not
+    private boolean isInstreamAdRequested = false;
+
+    /* end of GoogleIMA defenitions */
+
     public ReactExoplayerView(ThemedReactContext context) {
         super(context);
         createViews();
@@ -134,6 +166,9 @@ class ReactExoplayerView extends FrameLayout implements LifecycleEventListener, 
         audioBecomingNoisyReceiver = new AudioBecomingNoisyReceiver(themedReactContext);
 
         initializePlayer();
+
+        // initialize an ImaSdkFactory object (related to GoogleIMA SDK)
+        this.mSdkFactory = ImaSdkFactory.getInstance();
     }
 
     @Override
@@ -401,6 +436,10 @@ class ReactExoplayerView extends FrameLayout implements LifecycleEventListener, 
         case ExoPlayer.STATE_IDLE:
             text += "idle";
             eventEmitter.idle();
+
+            // this method is related to GoogleIMA SDK
+            onPlayerIdle();
+
             break;
         case ExoPlayer.STATE_BUFFERING:
             text += "buffering";
@@ -417,6 +456,10 @@ class ReactExoplayerView extends FrameLayout implements LifecycleEventListener, 
             text += "ended";
             eventEmitter.end();
             onStopPlayback();
+
+            // this method is related to GoogleIMA SDK
+            onPlayerCompleteVideo();
+
             break;
         default:
             text += "unknown";
@@ -665,7 +708,149 @@ class ReactExoplayerView extends FrameLayout implements LifecycleEventListener, 
         }
     }
 
+    /* GoogleIMA related methods */
+
+    // instreamAdInfo setter
+    // if instreamAdInfo is not null => we have instream ad
     public void setInstreamAdInfo(InstreamAdInfo newInstreamAdInfo) {
+        // set instreamAdInfo(called by JS)
         this.instreamAdInfo = newInstreamAdInfo;
+
+        // create an ImaSdkSettings object in order to pass options to GoogleIMA SDK
+        // such az adLang, ...
+        ImaSdkSettings mImaSdkSettings = ImaSdkFactory.getInstance().createImaSdkSettings();
+        mImaSdkSettings.setLanguage(this.instreamAdInfo.getAdLang());
+
+        // Create an AdsLoader.
+        this.mAdsLoader = mSdkFactory.createAdsLoader(this.getContext(), mImaSdkSettings);
+        // Add listeners for when ads are loaded and for errors.
+        mAdsLoader.addAdErrorListener(this);
+        this.mAdsLoader.addAdsLoadedListener(new AdsLoadedListener() {
+            @Override
+            public void onAdsManagerLoaded(AdsManagerLoadedEvent adsManagerLoadedEvent) {
+                // Ads were successfully loaded, so get the AdsManager instance. AdsManager has
+                // events for ad playback and errors.
+                mAdsManager = adsManagerLoadedEvent.getAdsManager();
+
+                // Attach event and error event listeners.
+                mAdsManager.addAdErrorListener(ReactExoplayerView.this);
+                mAdsManager.addAdEventListener(ReactExoplayerView.this);
+                mAdsManager.init();
+            }
+        });
+    }
+
+    private void onPlayerIdle() {
+        if (this.instreamAdInfo != null) {
+            setPlayWhenReady(false);
+            requestAds(instreamAdInfo.getAdTagUrl());
+        }
+    }
+
+    // Add listener for when the content video finishes.
+    private void onPlayerCompleteVideo() {
+        // if player should play ad
+        if (this.instreamAdInfo != null) {
+            // Handle completed event for playing post-rolls.
+            if (mAdsLoader != null) {
+                mAdsLoader.contentComplete();
+            }
+        }
+    }
+
+    // Request video ads from the given VAST ad tag.
+    private void requestAds(String adTagUrl) {
+        if (isInstreamAdRequested)
+            return;
+
+        isInstreamAdRequested = true;
+
+        // tell GoogleIMA SDK where to play instream ad
+        AdDisplayContainer adDisplayContainer = mSdkFactory.createAdDisplayContainer();
+        adDisplayContainer.setAdContainer((ViewGroup) this);
+
+        // Create the ads request.
+        AdsRequest request = mSdkFactory.createAdsRequest();
+        request.setAdTagUrl(adTagUrl);
+        request.setAdDisplayContainer(adDisplayContainer);
+        request.setContentProgressProvider(new ContentProgressProvider() {
+            @Override
+            public VideoProgressUpdate getContentProgress() {
+                if (mIsAdDisplayed || player == null || player.getDuration() <= 0) {
+                    return VideoProgressUpdate.VIDEO_TIME_NOT_READY;
+                }
+                return new VideoProgressUpdate(player.getCurrentPosition(), player.getDuration());
+            }
+        });
+
+        // Request the ad. After the ad is loaded, onAdsManagerLoaded() will be
+        mAdsLoader.requestAds(request);
+    }
+
+    @Override
+    public void onAdEvent(AdEvent adEvent) {
+        Log.i(TAG, "Event: " + adEvent.getType());
+
+        // These are the suggested event types to handle. For full list of all ad event
+        // types, see the documentation for AdEvent.AdEventType.
+        switch (adEvent.getType()) {
+        case LOADED:
+            // AdEventType.LOADED will be fired when ads are ready to be played.
+            // AdsManager.start() begins ad playback. This method is ignored for VMAP or
+            // ad rules playlists, as the SDK will automatically start executing the
+            // playlist.
+            mAdsManager.start();
+            break;
+        case CONTENT_PAUSE_REQUESTED:
+            // AdEventType.CONTENT_PAUSE_REQUESTED is fired immediately before a video
+            // ad is played.
+            mIsAdDisplayed = true;
+            setPausedModifier(true);
+
+            invalidate(this, 0, 32, themedReactContext);
+
+            break;
+        case CONTENT_RESUME_REQUESTED:
+            // AdEventType.CONTENT_RESUME_REQUESTED is fired when the ad is completed
+            // and you should start playing your content.
+            mIsAdDisplayed = false;
+            setPausedModifier(false);
+            break;
+        case ALL_ADS_COMPLETED:
+            if (mAdsManager != null) {
+                mAdsManager.destroy();
+                mAdsManager = null;
+            }
+            isInstreamAdRequested = false;
+            break;
+        default:
+            break;
+        }
+    }
+
+    // if we have some problem in showing ad => we play main video
+    @Override
+    public void onAdError(AdErrorEvent adErrorEvent) {
+        Log.e(TAG, "Ad Error: " + adErrorEvent.getError().getMessage());
+        setPausedModifier(false);
+    }
+
+    private void invalidate(final View view, final int round, final int total, final ThemedReactContext context) {
+        if (round == total)
+            return;
+
+        view.measure(View.MeasureSpec.makeMeasureSpec(view.getWidth(), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(view.getHeight(), View.MeasureSpec.EXACTLY));
+        view.layout(view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
+
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                invalidate(view, round + 1, total, context);
+            }
+        }, 250);
+
+        /* end of GoogleIMA related methods */
     }
 }

@@ -163,8 +163,14 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
             adTagUrl = instreamAdInfo.getString("adTagUrl");
         }
 
+        // language of instream ad (default is english)
+        String adLang = "en";
+        if (instreamAdInfo.hasKey("adLang")) {
+            adLang = instreamAdInfo.getString("adLang");
+        }
+
         if (adTagUrl != null) {
-            videoView.setInstreamAdInfo(new InstreamAdInfo(adTagUrl));
+            videoView.setInstreamAdInfo(new InstreamAdInfo(adTagUrl, adLang));
         }
     }
 
