@@ -156,6 +156,12 @@ export default class Video extends Component {
     }
   };
 
+  _onVideoWillBeStarted = () => {
+    if (this.props.onVideoWillBeStarted) {
+      this.props.onVideoWillBeStarted();
+    }
+  };
+
   render() {
     const resizeMode = this.props.resizeMode;
     const source = resolveAssetSource(this.props.source) || {};
@@ -209,6 +215,7 @@ export default class Video extends Component {
       onPlaybackRateChange: this._onPlaybackRateChange,
       onAudioFocusChanged: this._onAudioFocusChanged,
       onAudioBecomingNoisy: this._onAudioBecomingNoisy,
+      onVideoWillBeStarted: this._onVideoWillBeStarted,
       instreamAdInfo: this.props.instreamAdInfo ? this.props.instreamAdInfo : {
         adTagUrl: undefined, adLang: undefined
       }
@@ -304,6 +311,7 @@ Video.propTypes = {
   onPlaybackRateChange: PropTypes.func,
   onAudioFocusChanged: PropTypes.func,
   onAudioBecomingNoisy: PropTypes.func,
+  onVideoWillBeStarted: PropTypes.func,
   instreamAdInfo: PropTypes.object,
 
   /* Required by react-native */

@@ -776,6 +776,7 @@ class ReactExoplayerView extends FrameLayout
         }
 
         this.doNothaveAd = true;
+        eventEmitter.videoWillBeStarted();
     }
 
     public void setSrc(final Uri uri, final String extension) {
@@ -887,6 +888,10 @@ class ReactExoplayerView extends FrameLayout
             setPlayWhenReady(false);
             setFinalSrcInPlayer();
             break;
+        case SKIPPED:
+        case COMPLETED:
+            eventEmitter.videoWillBeStarted();
+            break;
         default:
             break;
         }
@@ -909,6 +914,7 @@ class ReactExoplayerView extends FrameLayout
         if (!isPaused)
             setPausedModifier(false);
 
+        eventEmitter.videoWillBeStarted();
         setFinalSrcInPlayer();
     }
 

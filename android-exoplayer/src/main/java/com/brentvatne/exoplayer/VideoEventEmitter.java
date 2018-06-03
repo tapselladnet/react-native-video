@@ -45,51 +45,20 @@ class VideoEventEmitter {
     private static final String EVENT_AUDIO_BECOMING_NOISY = "onAudioBecomingNoisy";
     private static final String EVENT_AUDIO_FOCUS_CHANGE = "onAudioFocusChanged";
     private static final String EVENT_PLAYBACK_RATE_CHANGE = "onPlaybackRateChange";
+    private static final String EVENT_VIDEO_WILL_BE_STARTED = "onVideoWillBeStarted";
 
-    static final String[] Events = {
-            EVENT_LOAD_START,
-            EVENT_LOAD,
-            EVENT_ERROR,
-            EVENT_PROGRESS,
-            EVENT_SEEK,
-            EVENT_END,
-            EVENT_FULLSCREEN_WILL_PRESENT,
-            EVENT_FULLSCREEN_DID_PRESENT,
-            EVENT_FULLSCREEN_WILL_DISMISS,
-            EVENT_FULLSCREEN_DID_DISMISS,
-            EVENT_STALLED,
-            EVENT_RESUME,
-            EVENT_READY,
-            EVENT_BUFFER,
-            EVENT_IDLE,
-            EVENT_TIMED_METADATA,
-            EVENT_AUDIO_BECOMING_NOISY,
-            EVENT_AUDIO_FOCUS_CHANGE,
-            EVENT_PLAYBACK_RATE_CHANGE,
-    };
+    static final String[] Events = { EVENT_LOAD_START, EVENT_LOAD, EVENT_ERROR, EVENT_PROGRESS, EVENT_SEEK, EVENT_END,
+            EVENT_FULLSCREEN_WILL_PRESENT, EVENT_FULLSCREEN_DID_PRESENT, EVENT_FULLSCREEN_WILL_DISMISS,
+            EVENT_FULLSCREEN_DID_DISMISS, EVENT_STALLED, EVENT_RESUME, EVENT_READY, EVENT_BUFFER, EVENT_IDLE,
+            EVENT_TIMED_METADATA, EVENT_AUDIO_BECOMING_NOISY, EVENT_AUDIO_FOCUS_CHANGE, EVENT_PLAYBACK_RATE_CHANGE,
+            EVENT_VIDEO_WILL_BE_STARTED };
 
     @Retention(RetentionPolicy.SOURCE)
-    @StringDef({
-            EVENT_LOAD_START,
-            EVENT_LOAD,
-            EVENT_ERROR,
-            EVENT_PROGRESS,
-            EVENT_SEEK,
-            EVENT_END,
-            EVENT_FULLSCREEN_WILL_PRESENT,
-            EVENT_FULLSCREEN_DID_PRESENT,
-            EVENT_FULLSCREEN_WILL_DISMISS,
-            EVENT_FULLSCREEN_DID_DISMISS,
-            EVENT_STALLED,
-            EVENT_RESUME,
-            EVENT_READY,
-            EVENT_BUFFER,
-            EVENT_IDLE,
-            EVENT_TIMED_METADATA,
-            EVENT_AUDIO_BECOMING_NOISY,
-            EVENT_AUDIO_FOCUS_CHANGE,
-            EVENT_PLAYBACK_RATE_CHANGE,
-    })
+    @StringDef({ EVENT_LOAD_START, EVENT_LOAD, EVENT_ERROR, EVENT_PROGRESS, EVENT_SEEK, EVENT_END,
+            EVENT_FULLSCREEN_WILL_PRESENT, EVENT_FULLSCREEN_DID_PRESENT, EVENT_FULLSCREEN_WILL_DISMISS,
+            EVENT_FULLSCREEN_DID_DISMISS, EVENT_STALLED, EVENT_RESUME, EVENT_READY, EVENT_BUFFER, EVENT_IDLE,
+            EVENT_TIMED_METADATA, EVENT_AUDIO_BECOMING_NOISY, EVENT_AUDIO_FOCUS_CHANGE, EVENT_PLAYBACK_RATE_CHANGE,
+            EVENT_VIDEO_WILL_BE_STARTED })
     @interface VideoEvents {
     }
 
@@ -119,6 +88,9 @@ class VideoEventEmitter {
 
     private static final String EVENT_PROP_TIMED_METADATA = "metadata";
 
+    void videoWillBeStarted() {
+        receiveEvent(EVENT_VIDEO_WILL_BE_STARTED, null);
+    }
 
     void setViewId(int viewId) {
         this.viewId = viewId;
@@ -215,7 +187,7 @@ class VideoEventEmitter {
 
     void playbackRateChange(float rate) {
         WritableMap map = Arguments.createMap();
-        map.putDouble(EVENT_PROP_PLAYBACK_RATE, (double)rate);
+        map.putDouble(EVENT_PROP_PLAYBACK_RATE, (double) rate);
         receiveEvent(EVENT_PLAYBACK_RATE_CHANGE, map);
     }
 
@@ -223,7 +195,6 @@ class VideoEventEmitter {
         WritableArray metadataArray = Arguments.createArray();
 
         for (int i = 0; i < metadata.length(); i++) {
-
 
             Id3Frame frame = (Id3Frame) metadata.get(i);
 
