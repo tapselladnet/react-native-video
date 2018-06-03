@@ -171,6 +171,8 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
 
         if (adTagUrl != null) {
             videoView.setInstreamAdInfo(new InstreamAdInfo(adTagUrl, adLang));
+        } else {
+            videoView.doNotHaveInstreamAd();
         }
     }
 

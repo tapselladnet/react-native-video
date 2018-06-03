@@ -209,7 +209,9 @@ export default class Video extends Component {
       onPlaybackRateChange: this._onPlaybackRateChange,
       onAudioFocusChanged: this._onAudioFocusChanged,
       onAudioBecomingNoisy: this._onAudioBecomingNoisy,
-      instreamAdInfo: this.props.instreamAdInfo
+      instreamAdInfo: this.props.instreamAdInfo ? this.props.instreamAdInfo : {
+        adTagUrl: undefined, adLang: undefined
+      }
     });
 
     if (this.props.poster && this.state.showPoster) {

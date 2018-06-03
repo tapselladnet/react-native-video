@@ -154,6 +154,18 @@ class ReactExoplayerView extends FrameLayout
     // show if we requested instreamAd or not
     private boolean isInstreamAdRequested = false;
 
+    // at first these variables will be filled instead of main uri and extention
+    private Uri initialUri = null;
+    private String initialExtension = null;
+    private boolean isInitialSrcSet = false;
+    private boolean isSrcRaw = false;
+
+    // show if we found that we have no instreamAd or not
+    private boolean doNothaveAd = false;
+
+    // show that if some ad is paused or not
+    private boolean isAdWaitingForResume = isPaused;
+
     /* end of GoogleIMA defenitions */
 
     public ReactExoplayerView(ThemedReactContext context) {
@@ -212,6 +224,11 @@ class ReactExoplayerView extends FrameLayout
             return;
         }
         setPlayWhenReady(!isPaused);
+
+        // related to GoogleIMA SDK
+        if (instreamAdInfo != null && mAdsManager != null && mIsAdDisplayed) {
+            mAdsManager.resume();
+        }
     }
 
     @Override
@@ -220,6 +237,11 @@ class ReactExoplayerView extends FrameLayout
             return;
         }
         setPlayWhenReady(false);
+
+        // related to GoogleIMA SDK
+        if (instreamAdInfo != null && mAdsManager != null && mIsAdDisplayed) {
+            mAdsManager.pause();
+        }
     }
 
     @Override
@@ -436,10 +458,6 @@ class ReactExoplayerView extends FrameLayout
         case ExoPlayer.STATE_IDLE:
             text += "idle";
             eventEmitter.idle();
-
-            // this method is related to GoogleIMA SDK
-            onPlayerIdle();
-
             break;
         case ExoPlayer.STATE_BUFFERING:
             text += "buffering";
@@ -581,9 +599,7 @@ class ReactExoplayerView extends FrameLayout
         eventEmitter.timedMetadata(metadata);
     }
 
-    // ReactExoplayerViewManager public api
-
-    public void setSrc(final Uri uri, final String extension) {
+    private void setPlayerSrc(final Uri uri, final String extension) {
         if (uri != null) {
             boolean isOriginalSourceNull = srcUri == null;
             boolean isSourceEqual = uri.equals(srcUri);
@@ -592,17 +608,13 @@ class ReactExoplayerView extends FrameLayout
             this.extension = extension;
             this.mediaDataSourceFactory = DataSourceUtil.getDefaultDataSourceFactory(getContext(), BANDWIDTH_METER);
 
-            if (!isOriginalSourceNull && !isSourceEqual) {
+            if (isOriginalSourceNull || !isSourceEqual) {
                 reloadSource();
             }
         }
     }
 
-    public void setProgressUpdateInterval(final float progressUpdateInterval) {
-        mProgressUpdateInterval = progressUpdateInterval;
-    }
-
-    public void setRawSrc(final Uri uri, final String extension) {
+    private void setPlayerRawSrc(final Uri uri, final String extension) {
         if (uri != null) {
             boolean isOriginalSourceNull = srcUri == null;
             boolean isSourceEqual = uri.equals(srcUri);
@@ -611,10 +623,16 @@ class ReactExoplayerView extends FrameLayout
             this.extension = extension;
             this.mediaDataSourceFactory = DataSourceUtil.getRawDataSourceFactory(getContext());
 
-            if (!isOriginalSourceNull && !isSourceEqual) {
+            if (isOriginalSourceNull || !isSourceEqual) {
                 reloadSource();
             }
         }
+    }
+
+    // ReactExoplayerViewManager public api
+
+    public void setProgressUpdateInterval(final float progressUpdateInterval) {
+        mProgressUpdateInterval = progressUpdateInterval;
     }
 
     private void reloadSource() {
@@ -631,6 +649,12 @@ class ReactExoplayerView extends FrameLayout
     }
 
     public void setPausedModifier(boolean paused) {
+        // related to GoogleIMA SDK (only if blew)
+        if (instreamAdInfo != null && mAdsManager != null && isPaused && isAdWaitingForResume && paused == false) {
+            mAdsManager.start();
+            isAdWaitingForResume = false;
+        }
+
         isPaused = paused;
         if (player != null) {
             if (!paused) {
@@ -738,12 +762,41 @@ class ReactExoplayerView extends FrameLayout
                 mAdsManager.init();
             }
         });
+
+        requestAds(instreamAdInfo.getAdTagUrl());
     }
 
-    private void onPlayerIdle() {
-        if (this.instreamAdInfo != null) {
-            setPlayWhenReady(false);
-            requestAds(instreamAdInfo.getAdTagUrl());
+    // this method is called when we found out we have no instreamAd
+    public void doNotHaveInstreamAd() {
+        if (this.isInitialSrcSet) {
+            if (!this.isSrcRaw)
+                this.setPlayerSrc(this.initialUri, this.initialExtension);
+            else
+                this.setPlayerRawSrc(this.initialUri, this.initialExtension);
+        }
+
+        this.doNothaveAd = true;
+    }
+
+    public void setSrc(final Uri uri, final String extension) {
+        if (doNothaveAd) {
+            this.setPlayerSrc(uri, extension);
+        } else {
+            this.initialUri = uri;
+            this.initialExtension = extension;
+            this.isInitialSrcSet = true;
+            this.isSrcRaw = false;
+        }
+    }
+
+    public void setRawSrc(final Uri uri, final String extension) {
+        if (doNothaveAd) {
+            this.setPlayerRawSrc(uri, extension);
+        } else {
+            this.initialUri = uri;
+            this.initialExtension = extension;
+            this.isInitialSrcSet = true;
+            this.isSrcRaw = true;
         }
     }
 
@@ -799,7 +852,12 @@ class ReactExoplayerView extends FrameLayout
             // AdsManager.start() begins ad playback. This method is ignored for VMAP or
             // ad rules playlists, as the SDK will automatically start executing the
             // playlist.
-            mAdsManager.start();
+
+            if (!isPaused)
+                mAdsManager.start();
+            else
+                isAdWaitingForResume = true;
+
             break;
         case CONTENT_PAUSE_REQUESTED:
             // AdEventType.CONTENT_PAUSE_REQUESTED is fired immediately before a video
@@ -807,7 +865,7 @@ class ReactExoplayerView extends FrameLayout
             mIsAdDisplayed = true;
             setPausedModifier(true);
 
-            invalidate(this, 0, 32, themedReactContext);
+            invalidateView(this, 0, 32);
 
             break;
         case CONTENT_RESUME_REQUESTED:
@@ -815,6 +873,8 @@ class ReactExoplayerView extends FrameLayout
             // and you should start playing your content.
             mIsAdDisplayed = false;
             setPausedModifier(false);
+            setPlayWhenReady(true);
+            setFinalSrcInPlayer();
             break;
         case ALL_ADS_COMPLETED:
             if (mAdsManager != null) {
@@ -823,8 +883,21 @@ class ReactExoplayerView extends FrameLayout
             }
             isInstreamAdRequested = false;
             break;
+        case STARTED:
+            setPlayWhenReady(false);
+            setFinalSrcInPlayer();
+            break;
         default:
             break;
+        }
+    }
+
+    private void setFinalSrcInPlayer() {
+        if (this.isInitialSrcSet) {
+            if (!this.isSrcRaw)
+                this.setPlayerSrc(this.initialUri, this.initialExtension);
+            else
+                this.setPlayerRawSrc(this.initialUri, this.initialExtension);
         }
     }
 
@@ -832,10 +905,15 @@ class ReactExoplayerView extends FrameLayout
     @Override
     public void onAdError(AdErrorEvent adErrorEvent) {
         Log.e(TAG, "Ad Error: " + adErrorEvent.getError().getMessage());
-        setPausedModifier(false);
+
+        if (!isPaused)
+            setPausedModifier(false);
+
+        setFinalSrcInPlayer();
     }
 
-    private void invalidate(final View view, final int round, final int total, final ThemedReactContext context) {
+    // this method tries to fix some issue on displaying ads
+    private void invalidateView(final View view, final int round, final int total) {
         if (round == total)
             return;
 
@@ -847,10 +925,10 @@ class ReactExoplayerView extends FrameLayout
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                invalidate(view, round + 1, total, context);
+                invalidateView(view, round + 1, total);
             }
         }, 250);
-
-        /* end of GoogleIMA related methods */
     }
+
+    /* end of GoogleIMA related methods */
 }
