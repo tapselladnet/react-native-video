@@ -166,6 +166,9 @@ class ReactExoplayerView extends FrameLayout
     // show that if some ad is paused or not
     private boolean isAdWaitingForResume = isPaused;
 
+    // show if preroll ad has shown or not
+    private boolean isPrerollAdShown = false;
+
     /* end of GoogleIMA defenitions */
 
     public ReactExoplayerView(ThemedReactContext context) {
@@ -780,7 +783,7 @@ class ReactExoplayerView extends FrameLayout
     }
 
     public void setSrc(final Uri uri, final String extension) {
-        if (doNothaveAd) {
+        if (doNothaveAd || isPrerollAdShown) {
             this.setPlayerSrc(uri, extension);
         } else {
             this.initialUri = uri;
@@ -791,7 +794,7 @@ class ReactExoplayerView extends FrameLayout
     }
 
     public void setRawSrc(final Uri uri, final String extension) {
-        if (doNothaveAd) {
+        if (doNothaveAd || isPrerollAdShown) {
             this.setPlayerRawSrc(uri, extension);
         } else {
             this.initialUri = uri;
@@ -891,6 +894,7 @@ class ReactExoplayerView extends FrameLayout
         case SKIPPED:
         case COMPLETED:
             eventEmitter.videoWillBeStarted();
+            this.isPrerollAdShown = true;
             break;
         default:
             break;
