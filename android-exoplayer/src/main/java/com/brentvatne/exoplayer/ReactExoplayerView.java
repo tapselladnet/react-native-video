@@ -915,8 +915,12 @@ class ReactExoplayerView extends FrameLayout
     public void onAdError(AdErrorEvent adErrorEvent) {
         Log.e(TAG, "Ad Error: " + adErrorEvent.getError().getMessage());
 
+        setPlayWhenReady(true);
+
         if (!isPaused)
             setPausedModifier(false);
+        else
+            setPausedModifier(true);
 
         eventEmitter.videoWillBeStarted();
         setFinalSrcInPlayer();
