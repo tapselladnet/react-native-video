@@ -169,6 +169,9 @@ class ReactExoplayerView extends FrameLayout
     // show if preroll ad has shown or not
     private boolean isPrerollAdShown = false;
 
+    // show if there is an error in preroll ad or not
+    private boolean isPrerollErrorOccurred = false;
+
     /* end of GoogleIMA defenitions */
 
     public ReactExoplayerView(ThemedReactContext context) {
@@ -783,7 +786,7 @@ class ReactExoplayerView extends FrameLayout
     }
 
     public void setSrc(final Uri uri, final String extension) {
-        if (doNothaveAd || isPrerollAdShown) {
+        if (doNothaveAd || isPrerollAdShown || isPrerollErrorOccurred) {
             this.setPlayerSrc(uri, extension);
         } else {
             this.initialUri = uri;
@@ -794,7 +797,7 @@ class ReactExoplayerView extends FrameLayout
     }
 
     public void setRawSrc(final Uri uri, final String extension) {
-        if (doNothaveAd || isPrerollAdShown) {
+        if (doNothaveAd || isPrerollAdShown || isPrerollErrorOccurred) {
             this.setPlayerRawSrc(uri, extension);
         } else {
             this.initialUri = uri;
@@ -924,6 +927,8 @@ class ReactExoplayerView extends FrameLayout
 
         eventEmitter.videoWillBeStarted();
         setFinalSrcInPlayer();
+
+        this.isPrerollErrorOccurred = true;
     }
 
     // this method tries to fix some issue on displaying ads
