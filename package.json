@@ -1,6 +1,6 @@
 {
     "name": "react-native-video-tapsell",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "A <Video /> element for react-native with the ability to play pre-roll ads",
     "main": "Video.js",
     "license": "MIT",
