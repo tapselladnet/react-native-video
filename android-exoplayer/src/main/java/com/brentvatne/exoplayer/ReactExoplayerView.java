@@ -78,6 +78,7 @@ class ReactExoplayerView extends FrameLayout
         AudioManager.OnAudioFocusChangeListener, MetadataRenderer.Output, AdEventListener, AdErrorListener {
 
     private static final String TAG = "ReactNative";
+    private static final String reactPacakgeName = "react-native-video-preroll";
 
     private static final DefaultBandwidthMeter BANDWIDTH_METER = new DefaultBandwidthMeter();
     private static final CookieManager DEFAULT_COOKIE_MANAGER;
@@ -141,11 +142,13 @@ class ReactExoplayerView extends FrameLayout
     // if this object is null then we have no instream ad
     private InstreamAdInfo instreamAdInfo = null;
 
-    /* GoogleIMA defenitions */
-
-    // these objects are related to GoogleIMA SDK
+    // this object creates other GoogleIMA SDK related objects
     private ImaSdkFactory mSdkFactory;
+
+    // responsible for loading ads
     private AdsLoader mAdsLoader;
+
+    // responsible for a single ad
     private AdsManager mAdsManager;
 
     // Whether an ad is displayed.
@@ -172,7 +175,11 @@ class ReactExoplayerView extends FrameLayout
     // show if there is an error in preroll ad or not
     private boolean isPrerollErrorOccurred = false;
 
-    /* end of GoogleIMA defenitions */
+    // number of preroll ad timeout seconds
+    private int timeoutSeconds = 8;
+
+    // view measure interval(in miliseconds)
+    private int viewMeasureInterval = 250;
 
     public ReactExoplayerView(ThemedReactContext context) {
         super(context);
@@ -226,28 +233,28 @@ class ReactExoplayerView extends FrameLayout
 
     @Override
     public void onHostResume() {
+        // if preroll ad is playing, we have to tell adsmanager to stop playing it
+        if (instreamAdInfo != null && mAdsManager != null && mIsAdDisplayed) {
+            mAdsManager.resume();
+        }
+
         if (playInBackground) {
             return;
         }
         setPlayWhenReady(!isPaused);
-
-        // related to GoogleIMA SDK
-        if (instreamAdInfo != null && mAdsManager != null && mIsAdDisplayed) {
-            mAdsManager.resume();
-        }
     }
 
     @Override
     public void onHostPause() {
+        // if preroll ad was playing, we have to tell adsmanager to play it
+        if (instreamAdInfo != null && mAdsManager != null && mIsAdDisplayed) {
+            mAdsManager.pause();
+        }
+
         if (playInBackground) {
             return;
         }
         setPlayWhenReady(false);
-
-        // related to GoogleIMA SDK
-        if (instreamAdInfo != null && mAdsManager != null && mIsAdDisplayed) {
-            mAdsManager.pause();
-        }
     }
 
     @Override
@@ -459,7 +466,7 @@ class ReactExoplayerView extends FrameLayout
 
     @Override
     public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
-        String text = "onStateChanged: playWhenReady=" + playWhenReady + ", playbackState=";
+        String text = "onPlayerStateChanged: playWhenReady=" + playWhenReady + ", playbackState=";
         switch (playbackState) {
         case ExoPlayer.STATE_IDLE:
             text += "idle";
@@ -489,7 +496,7 @@ class ReactExoplayerView extends FrameLayout
             text += "unknown";
             break;
         }
-        Log.d(TAG, text);
+        logDebug(text);
     }
 
     private void startProgressHandler() {
@@ -655,7 +662,7 @@ class ReactExoplayerView extends FrameLayout
     }
 
     public void setPausedModifier(boolean paused) {
-        // related to GoogleIMA SDK (only if blew)
+        // we ad is waiting for playing we have to start playing it
         if (instreamAdInfo != null && mAdsManager != null && isPaused && isAdWaitingForResume && paused == false) {
             mAdsManager.start();
             isAdWaitingForResume = false;
@@ -738,7 +745,17 @@ class ReactExoplayerView extends FrameLayout
         }
     }
 
-    /* GoogleIMA related methods */
+    private void logError(String message) {
+        Log.e(TAG, reactPacakgeName + " : " + message);
+    }
+
+    private void logInfo(String message) {
+        Log.i(TAG, reactPacakgeName + " : " + message);
+    }
+
+    private void logDebug(String message) {
+        Log.d(TAG, reactPacakgeName + " : " + message);
+    }
 
     // instreamAdInfo setter
     // if instreamAdInfo is not null => we have instream ad
@@ -774,6 +791,7 @@ class ReactExoplayerView extends FrameLayout
 
     // this method is called when we found out we have no instreamAd
     public void doNotHaveInstreamAd() {
+        // set player src
         if (this.isInitialSrcSet) {
             if (!this.isSrcRaw)
                 this.setPlayerSrc(this.initialUri, this.initialExtension);
@@ -849,7 +867,7 @@ class ReactExoplayerView extends FrameLayout
 
     @Override
     public void onAdEvent(AdEvent adEvent) {
-        Log.i(TAG, "Event: " + adEvent.getType());
+        logInfo("Preroll Ad Event: " + adEvent.getType());
 
         // These are the suggested event types to handle. For full list of all ad event
         // types, see the documentation for AdEvent.AdEventType.
@@ -872,7 +890,9 @@ class ReactExoplayerView extends FrameLayout
             mIsAdDisplayed = true;
             setPausedModifier(true);
 
-            invalidateView(this, 0, 32);
+            // we measure this view every 'viewMeasureInterval' miliseconds for
+            // 'timeoutSeconds' seconds
+            invalidateView(this, 0, timeoutSeconds * (1000 / viewMeasureInterval));
 
             break;
         case CONTENT_RESUME_REQUESTED:
@@ -892,10 +912,12 @@ class ReactExoplayerView extends FrameLayout
             break;
         case STARTED:
             setPlayWhenReady(false);
+            // set final src
             setFinalSrcInPlayer();
             break;
         case SKIPPED:
         case COMPLETED:
+            // call related callback
             eventEmitter.videoWillBeStarted();
             this.isPrerollAdShown = true;
             break;
@@ -916,16 +938,19 @@ class ReactExoplayerView extends FrameLayout
     // if we have some problem in showing ad => we play main video
     @Override
     public void onAdError(AdErrorEvent adErrorEvent) {
-        Log.e(TAG, "Ad Error: " + adErrorEvent.getError().getMessage());
+        logError("Preroll Ad Error: " + adErrorEvent.getError().getMessage());
 
+        // set player status
         setPlayWhenReady(true);
-
         if (!isPaused)
             setPausedModifier(false);
         else
             setPausedModifier(true);
 
+        // call related callback
         eventEmitter.videoWillBeStarted();
+
+        // set final src
         setFinalSrcInPlayer();
 
         this.isPrerollErrorOccurred = true;
@@ -936,18 +961,18 @@ class ReactExoplayerView extends FrameLayout
         if (round == total)
             return;
 
+        // measure view
         view.measure(View.MeasureSpec.makeMeasureSpec(view.getWidth(), View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(view.getHeight(), View.MeasureSpec.EXACTLY));
         view.layout(view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
 
+        // call itself with delay
         final Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 invalidateView(view, round + 1, total);
             }
-        }, 250);
+        }, viewMeasureInterval);
     }
-
-    /* end of GoogleIMA related methods */
 }
