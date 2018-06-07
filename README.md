@@ -1,4 +1,4 @@
-## react-native-video
+## react-native-video-tapsell
 
 this package is a fork of react-native-video package and currently only supports android
 
