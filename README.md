@@ -53,6 +53,9 @@ protected List<ReactPackage> getPackages() {
 ```
 ## Usage
 
+please note that this package have all features of react-native-video package but poster
+(poster will be shown only if we have no preroll ads)
+
 ```javascript
 // Within your render function, assuming you have a file called
 // "background.mp4" in your project. You can include multiple videos

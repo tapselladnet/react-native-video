@@ -16,7 +16,7 @@ export default class Video extends Component {
     super(props);
 
     this.state = {
-      showPoster: true,
+      showPoster: props.instreamAdInfo ? false : true,
     };
   }
 
@@ -49,6 +49,9 @@ export default class Video extends Component {
   _onLoad = (event) => {
     if (this.props.onLoad) {
       this.props.onLoad(event.nativeEvent);
+      this.setState({
+        showPoster: false
+      });
     }
   };
 
