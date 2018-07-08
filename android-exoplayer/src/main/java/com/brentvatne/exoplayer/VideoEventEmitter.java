@@ -46,19 +46,21 @@ class VideoEventEmitter {
     private static final String EVENT_AUDIO_FOCUS_CHANGE = "onAudioFocusChanged";
     private static final String EVENT_PLAYBACK_RATE_CHANGE = "onPlaybackRateChange";
     private static final String EVENT_VIDEO_WILL_BE_STARTED = "onVideoWillBeStarted";
+    private static final String EVENT_LOADER_UNMOUNT_REQUESTED = "onLoaderUnmountRequested";
+    private static final String EVENT_LOADER_MOUNT_REQUESTED = "onLoaderMountRequested";
 
     static final String[] Events = { EVENT_LOAD_START, EVENT_LOAD, EVENT_ERROR, EVENT_PROGRESS, EVENT_SEEK, EVENT_END,
             EVENT_FULLSCREEN_WILL_PRESENT, EVENT_FULLSCREEN_DID_PRESENT, EVENT_FULLSCREEN_WILL_DISMISS,
             EVENT_FULLSCREEN_DID_DISMISS, EVENT_STALLED, EVENT_RESUME, EVENT_READY, EVENT_BUFFER, EVENT_IDLE,
             EVENT_TIMED_METADATA, EVENT_AUDIO_BECOMING_NOISY, EVENT_AUDIO_FOCUS_CHANGE, EVENT_PLAYBACK_RATE_CHANGE,
-            EVENT_VIDEO_WILL_BE_STARTED };
+            EVENT_VIDEO_WILL_BE_STARTED, EVENT_LOADER_UNMOUNT_REQUESTED, EVENT_LOADER_MOUNT_REQUESTED };
 
     @Retention(RetentionPolicy.SOURCE)
     @StringDef({ EVENT_LOAD_START, EVENT_LOAD, EVENT_ERROR, EVENT_PROGRESS, EVENT_SEEK, EVENT_END,
             EVENT_FULLSCREEN_WILL_PRESENT, EVENT_FULLSCREEN_DID_PRESENT, EVENT_FULLSCREEN_WILL_DISMISS,
             EVENT_FULLSCREEN_DID_DISMISS, EVENT_STALLED, EVENT_RESUME, EVENT_READY, EVENT_BUFFER, EVENT_IDLE,
             EVENT_TIMED_METADATA, EVENT_AUDIO_BECOMING_NOISY, EVENT_AUDIO_FOCUS_CHANGE, EVENT_PLAYBACK_RATE_CHANGE,
-            EVENT_VIDEO_WILL_BE_STARTED })
+            EVENT_VIDEO_WILL_BE_STARTED, EVENT_LOADER_UNMOUNT_REQUESTED, EVENT_LOADER_MOUNT_REQUESTED })
     @interface VideoEvents {
     }
 
@@ -90,6 +92,14 @@ class VideoEventEmitter {
 
     void videoWillBeStarted() {
         receiveEvent(EVENT_VIDEO_WILL_BE_STARTED, null);
+    }
+
+    void unmountLoader() {
+        receiveEvent(EVENT_LOADER_UNMOUNT_REQUESTED, null);
+    }
+
+    void mountLoader() {
+        receiveEvent(EVENT_LOADER_MOUNT_REQUESTED, null);
     }
 
     void setViewId(int viewId) {

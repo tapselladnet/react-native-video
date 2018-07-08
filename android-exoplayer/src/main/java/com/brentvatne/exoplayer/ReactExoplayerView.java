@@ -181,6 +181,9 @@ class ReactExoplayerView extends FrameLayout
     // view measure interval(in miliseconds)
     private int viewMeasureInterval = 250;
 
+    // shows if main video is loaded or not
+    private boolean isMainVideoLoaded = false;
+
     public ReactExoplayerView(ThemedReactContext context) {
         super(context);
         createViews();
@@ -510,6 +513,8 @@ class ReactExoplayerView extends FrameLayout
             int width = videoFormat != null ? videoFormat.width : 0;
             int height = videoFormat != null ? videoFormat.height : 0;
             eventEmitter.load(player.getDuration(), player.getCurrentPosition(), width, height);
+            eventEmitter.unmountLoader();
+            this.isMainVideoLoaded = true;
         }
     }
 
@@ -909,8 +914,14 @@ class ReactExoplayerView extends FrameLayout
                 mAdsManager = null;
             }
             isInstreamAdRequested = false;
+
+            if (!this.isMainVideoLoaded) {
+                eventEmitter.mountLoader();
+            }
+
             break;
         case STARTED:
+            eventEmitter.unmountLoader();
             setPlayWhenReady(false);
             // set final src
             setFinalSrcInPlayer();

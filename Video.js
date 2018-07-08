@@ -165,6 +165,18 @@ export default class Video extends Component {
     }
   };
 
+  _onLoaderUnmountRequested = () => {
+    if (this.props.onLoaderUnmountRequested) {
+      this.props.onLoaderUnmountRequested()
+    }
+  }
+
+  _onLoaderMountRequested = () => {
+    if (this.props.onLoaderMountRequested) {
+      this.props.onLoaderMountRequested()
+    }
+  }
+
   render() {
     const resizeMode = this.props.resizeMode;
     const source = resolveAssetSource(this.props.source) || {};
@@ -219,6 +231,8 @@ export default class Video extends Component {
       onAudioFocusChanged: this._onAudioFocusChanged,
       onAudioBecomingNoisy: this._onAudioBecomingNoisy,
       onVideoWillBeStarted: this._onVideoWillBeStarted,
+      onLoaderUnmountRequested: this._onLoaderUnmountRequested,
+      onLoaderMountRequested: this._onLoaderMountRequested,
       instreamAdInfo: this.props.instreamAdInfo ? this.props.instreamAdInfo : {
         adTagUrl: undefined, adLang: undefined
       }
@@ -315,6 +329,8 @@ Video.propTypes = {
   onAudioFocusChanged: PropTypes.func,
   onAudioBecomingNoisy: PropTypes.func,
   onVideoWillBeStarted: PropTypes.func,
+  onLoaderUnmountRequested: PropTypes.func,
+  onLoaderMountRequested: PropTypes.func,
   instreamAdInfo: PropTypes.object,
 
   /* Required by react-native */
